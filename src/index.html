@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Confluence Page Generator</title>
+  <style>
+    :root {
+      --brand: #0052cc;
+      --brand-hover: #0747a6;
+      --surface: #f4f5f7;
+      --card: #ffffff;
+      --border: #dfe1e6;
+      --text: #172b4d;
+      --muted: #6b778c;
+      --danger: #de350b;
+      --success: #00875a;
+      --radius: 6px;
+      --shadow: 0 1px 3px rgba(0,0,0,.12);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--surface);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: var(--brand);
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: var(--shadow);
+    }
+    header h1 { font-size: 1.1rem; font-weight: 600; }
+    header .badge {
+      background: rgba(255,255,255,.2);
+      border-radius: 3px;
+      font-size: .7rem;
+      padding: 2px 6px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 20px;
+      padding: 24px;
+      flex: 1;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 14px 18px;
+      font-weight: 600;
+      font-size: .875rem;
+      border-bottom: 1px solid var(--border);
+      background: #fafbfc;
+    }
+
+    .panel-body { padding: 18px; }
+
+    label {
+      display: block;
+      font-size: .8rem;
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+
+    select, input[type="text"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: .9rem;
+      color: var(--text);
+      background: #fff;
+      outline: none;
+      transition: border-color .15s;
+    }
+    select:focus, input[type="text"]:focus { border-color: var(--brand); }
+
+    .field { margin-bottom: 16px; }
+
+    .source-badge {
+      font-size: .75rem;
+      background: #e3f2fd;
+      border: 1px solid #90caf9;
+      border-radius: 4px;
+      padding: 8px 10px;
+      color: #1565c0;
+      margin-bottom: 16px;
+      word-break: break-all;
+    }
+    .source-badge strong { display: block; margin-bottom: 2px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 18px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, opacity .15s;
+    }
+    .btn-primary { background: var(--brand); color: #fff; width: 100%; justify-content: center; }
+    .btn-primary:hover { background: var(--brand-hover); }
+    .btn-primary:disabled { opacity: .5; cursor: default; }
+    .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--border); }
+
+    .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+
+    .alert {
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      font-size: .85rem;
+      margin-bottom: 14px;
+      display: none;
+    }
+    .alert-error { background: #ffeaea; border: 1px solid #f5c6cb; color: var(--danger); }
+    .alert-success { background: #e3faf3; border: 1px solid #b7e4d4; color: var(--success); }
+    .alert.visible { display: block; }
+
+    .preview-toolbar {
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fafbfc;
+    }
+    .preview-toolbar .tabs { display: flex; gap: 4px; }
+    .tab {
+      padding: 5px 12px;
+      border-radius: 4px;
+      font-size: .8rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      color: var(--muted);
+      background: none;
+    }
+    .tab.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .tab:not(.active):hover { background: var(--border); }
+
+    #preview-rendered {
+      padding: 24px;
+      line-height: 1.6;
+      overflow-y: auto;
+      max-height: calc(100vh - 220px);
+    }
+    #preview-source {
+      display: none;
+      margin: 0;
+      padding: 18px;
+      font-size: .8rem;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+      overflow-y: auto;
+      max-height: calc(100vh - 220px);
+      background: #f8f9fa;
+      color: #444;
+    }
+
+    #preview-rendered h1 { font-size: 1.5rem; margin-bottom: 14px; border-bottom: 2px solid var(--brand); padding-bottom: 6px; color: var(--brand); }
+    #preview-rendered h2 { font-size: 1.1rem; margin: 20px 0 8px; color: var(--text); }
+    #preview-rendered p { margin-bottom: 8px; color: var(--muted); }
+    #preview-rendered a { color: var(--brand); }
+    .info-macro {
+      background: #e3f2fd;
+      border-left: 4px solid var(--brand);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 10px 14px;
+      margin-bottom: 18px;
+      font-size: .875rem;
+      color: #1565c0;
+    }
+    .info-macro strong { display: block; margin-bottom: 4px; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; }
+
+    .empty-state {
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--muted);
+    }
+    .empty-state svg { margin-bottom: 12px; opacity: .4; }
+    .empty-state p { font-size: .9rem; }
+
+    .doc-list { max-height: 220px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+    .doc-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      font-size: .85rem;
+      transition: background .1s;
+    }
+    .doc-item:last-child { border-bottom: none; }
+    .doc-item:hover { background: #f0f4ff; }
+    .doc-item.selected { background: #e8f0fe; }
+    .doc-icon { font-size: 1rem; flex-shrink: 0; }
+
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+    <line x1="16" y1="13" x2="8" y2="13"/>
+    <line x1="16" y1="17" x2="8" y2="17"/>
+    <polyline points="10 9 9 9 8 9"/>
+  </svg>
+  <h1>Confluence Page Generator</h1>
+  <span class="badge">SharePoint-only source</span>
+</header>
+
+<div class="layout">
+
+  <div>
+    <div class="panel">
+      <div class="panel-header">Configuration</div>
+      <div class="panel-body">
+
+        <div class="source-badge">
+          <strong>Approved source only</strong>
+          twodegrees1.sharepoint.com &rsaquo; Enterprise-AIHackathonn-2026 &rsaquo; Project Documents
+        </div>
+
+        <div id="alert-error" class="alert alert-error" role="alert"></div>
+        <div id="alert-success" class="alert alert-success" role="alert"></div>
+
+        <div class="field">
+          <label>Bearer token (optional)</label>
+          <input type="text" id="token" placeholder="Paste your SharePoint access token…" autocomplete="off" />
+        </div>
+        <button class="btn btn-secondary" id="load-docs-btn" style="width:100%;margin-bottom:16px;">
+          Load documents from SharePoint
+        </button>
+
+        <div class="field" id="doc-list-field" style="display:none;">
+          <label>Select document</label>
+          <div class="doc-list" id="doc-list"></div>
+        </div>
+
+        <div class="field">
+          <label>Document URL</label>
+          <input type="text" id="doc-url"
+            placeholder="https://twodegrees1.sharepoint.com/teams/Enterprise-AIHackathonn-2026/Project%20Documents/…"
+            autocomplete="off" />
+        </div>
+
+        <div class="field">
+          <label>Document name (optional)</label>
+          <input type="text" id="doc-name" placeholder="Leave blank to infer from URL" />
+        </div>
+
+        <div class="field">
+          <label>Template</label>
+          <select id="template">
+            <option value="architecture">Architecture Page</option>
+            <option value="poc">Proof of Concept Page</option>
+            <option value="pov">Point of View Page</option>
+            <option value="data_dictionary">Data Dictionary</option>
+            <option value="general_info">General Info</option>
+          </select>
+        </div>
+
+        <button class="btn btn-primary" id="generate-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+          </svg>
+          Generate Page
+        </button>
+
+        <div class="btn-row" id="copy-row" style="display:none;">
+          <button class="btn btn-secondary" id="copy-btn" style="flex:1;">Copy Confluence markup</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="display:flex;flex-direction:column;">
+    <div class="preview-toolbar">
+      <span style="font-size:.85rem;font-weight:600;color:var(--muted);">Preview</span>
+      <div class="tabs">
+        <button class="tab active" id="tab-rendered" onclick="switchTab('rendered')">Rendered</button>
+        <button class="tab" id="tab-source" onclick="switchTab('source')">Confluence markup</button>
+      </div>
+    </div>
+    <div id="preview-rendered">
+      <div class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        <p>Fill in the form and click <strong>Generate Page</strong> to see a preview.</p>
+      </div>
+    </div>
+    <pre id="preview-source"></pre>
+  </div>
+
+</div>
+
+<script>
+  const ALLOWED_PREFIX = /^https:\/\/twodegrees1\.sharepoint\.com\/teams\/Enterprise-AIHackathonn-2026\/Project%20Documents\//i;
+
+  function isAllowedUrl(url) {
+    return ALLOWED_PREFIX.test(url.trim());
+  }
+
+  const $ = id => document.getElementById(id);
+
+  function showError(msg) {
+    const el = $("alert-error");
+    el.textContent = msg;
+    el.classList.add("visible");
+    $("alert-success").classList.remove("visible");
+  }
+
+  function showSuccess(msg) {
+    const el = $("alert-success");
+    el.textContent = msg;
+    el.classList.add("visible");
+    $("alert-error").classList.remove("visible");
+  }
+
+  function clearAlerts() {
+    $("alert-error").classList.remove("visible");
+    $("alert-success").classList.remove("visible");
+  }
+
+  function switchTab(which) {
+    if (which === "rendered") {
+      $("preview-rendered").style.display = "";
+      $("preview-source").style.display = "none";
+      $("tab-rendered").classList.add("active");
+      $("tab-source").classList.remove("active");
+    } else {
+      $("preview-rendered").style.display = "none";
+      $("preview-source").style.display = "";
+      $("tab-rendered").classList.remove("active");
+      $("tab-source").classList.add("active");
+    }
+  }
+
+  function confluenceToHtml(markup) {
+    let html = markup.replace(
+      /<ac:structured-macro[^>]*ac:name="info"[^>]*>[\s\S]*?<ac:parameter[^>]*>([^<]*)<\/ac:parameter>[\s\S]*?<ac:rich-text-body>([\s\S]*?)<\/ac:rich-text-body>[\s\S]*?<\/ac:structured-macro>/g,
+      (_, title, body) =>
+        `<div class="info-macro"><strong>${title}</strong>${body}</div>`
+    );
+    return html;
+  }
+
+  $("load-docs-btn").addEventListener("click", async () => {
+    const token = $("token").value.trim();
+    if (!token) {
+      showError("A Bearer token is required to load documents from SharePoint.");
+      return;
+    }
+    clearAlerts();
+    const btn = $("load-docs-btn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Loading…';
+
+    try {
+      const resp = await fetch("/api/sharepoint/docs", {
+        headers: { Authorization: "Bearer " + token },
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || resp.statusText);
+
+      const list = $("doc-list");
+      list.innerHTML = "";
+      (data.docs || []).forEach(doc => {
+        const el = document.createElement("div");
+        el.className = "doc-item";
+        el.innerHTML = `<span class="doc-icon">📄</span><span>${doc.name}</span>`;
+        el.addEventListener("click", () => {
+          document.querySelectorAll(".doc-item").forEach(i => i.classList.remove("selected"));
+          el.classList.add("selected");
+          $("doc-url").value = doc.url;
+          $("doc-name").value = doc.name;
+        });
+        list.appendChild(el);
+      });
+
+      $("doc-list-field").style.display = data.docs?.length ? "" : "none";
+      if (data.docs?.length) showSuccess(`${data.docs.length} document(s) loaded.`);
+      else showError("No documents found in the approved SharePoint library.");
+    } catch (err) {
+      showError("Could not load documents: " + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Load documents from SharePoint";
+    }
+  });
+
+  $("generate-btn").addEventListener("click", async () => {
+    clearAlerts();
+    const docUrl = $("doc-url").value.trim();
+    const docName = $("doc-name").value.trim();
+    const template = $("template").value;
+
+    if (!docUrl) { showError("Please enter a document URL."); return; }
+    if (!isAllowedUrl(docUrl)) {
+      showError(
+        "Only documents from the approved SharePoint library are allowed.\n" +
+        "URL must start with: https://twodegrees1.sharepoint.com/teams/Enterprise-AIHackathonn-2026/Project%20Documents/"
+      );
+      return;
+    }
+
+    const btn = $("generate-btn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Generating…';
+
+    try {
+      const resp = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doc_url: docUrl, doc_name: docName, template }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || resp.statusText);
+
+      $("preview-rendered").innerHTML = confluenceToHtml(data.markup);
+      $("preview-source").textContent = data.markup;
+      $("copy-row").style.display = "";
+      showSuccess("Page generated successfully.");
+      switchTab("rendered");
+    } catch (err) {
+      showError("Generation failed: " + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML =
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> Generate Page';
+    }
+  });
+
+  $("copy-btn").addEventListener("click", async () => {
+    const text = $("preview-source").textContent;
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      const btn = $("copy-btn");
+      btn.textContent = "Copied!";
+      setTimeout(() => { btn.textContent = "Copy Confluence markup"; }, 2000);
+    } catch {
+      showError("Clipboard write failed — please copy manually from the markup tab.");
+    }
+  });
+
+  $("doc-url").addEventListener("input", () => {
+    const url = $("doc-url").value.trim();
+    if (!url) { clearAlerts(); return; }
+    if (!isAllowedUrl(url)) {
+      showError("URL is not from the approved SharePoint location.");
+    } else {
+      clearAlerts();
+    }
+  });
+</script>
+
+</body>
+</html>
