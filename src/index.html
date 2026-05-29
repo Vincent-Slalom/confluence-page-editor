@@ -266,6 +266,10 @@
           twodegrees1.sharepoint.com &rsaquo; Enterprise-AIHackathonn-2026 &rsaquo; Project Documents
         </div>
 
+        <div id="mock-banner" style="display:none;font-size:.75rem;background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:7px 10px;color:#856404;margin-bottom:12px;">
+          <strong>Dev mode</strong> — document list is mocked, not real SharePoint data.
+        </div>
+
         <div id="alert-error" class="alert alert-error" role="alert"></div>
         <div id="alert-success" class="alert alert-success" role="alert"></div>
 
@@ -426,11 +430,25 @@
         list.appendChild(el);
       });
 
-      $("doc-list-field").style.display = data.docs?.length ? "" : "none";
-      if (data.docs?.length) showSuccess(`${data.docs.length} document(s) loaded.`);
-      else showError("No documents found in the approved SharePoint library.");
+      const hasDocs = data.docs?.length > 0;
+      $("doc-list-field").style.display = hasDocs ? "" : "none";
+      $("mock-banner").style.display = data.docs?.[0]?._mock ? "" : "none";
+      if (hasDocs) {
+        showSuccess(`${data.docs.length} document(s) loaded.`);
+      } else if (data.warning) {
+        showError(data.warning);
+      } else {
+        showError("The approved SharePoint folder appears to be empty. Check your access or try again later.");
+      }
     } catch (err) {
-      showError("Could not load documents: " + err.message);
+      const msg = err.message || "";
+      if (msg.includes("401") || msg.includes("403")) {
+        showError("SharePoint access denied. Check that your Bearer token is valid and has access to the Project Documents folder.");
+      } else if (msg.includes("Failed to fetch") || msg.includes("502")) {
+        showError("Cannot reach SharePoint. Check your network connection or try again later.");
+      } else {
+        showError("Could not load documents: " + msg);
+      }
     } finally {
       btn.disabled = false;
       btn.textContent = "Load documents from SharePoint";
@@ -471,7 +489,14 @@
       showSuccess("Page generated successfully.");
       switchTab("rendered");
     } catch (err) {
-      showError("Generation failed: " + err.message);
+      const msg = err.message || "";
+      if (msg.toLowerCase().includes("unsupported file type")) {
+        showError("Unsupported file type. Please select a .docx, .pdf, .pptx, .xlsx, .doc, .txt, or .md file.");
+      } else if (msg.toLowerCase().includes("approved sharepoint")) {
+        showError("Document is not from the approved SharePoint location.");
+      } else {
+        showError("Generation failed: " + msg);
+      }
     } finally {
       btn.disabled = false;
       btn.innerHTML =
